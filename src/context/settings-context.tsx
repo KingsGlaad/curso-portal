@@ -35,7 +35,7 @@ export interface UserSettings {
 
 const defaultSettings: UserSettings = {
   avatar: "./images/default-profile.jpeg",
-  fullName: "Dollar Singh",
+  fullName: "User Name",
   email: "dollar.singh@example.com",
   phone: "+1 (555) 123-4567",
   timezone: "utc-8",

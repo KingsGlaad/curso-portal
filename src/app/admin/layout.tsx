@@ -11,7 +11,10 @@ export default function DashboardLayout({
 }) {
   return (
     <AuthProvider>
-      <main className="flex min-h-screen w-full flex-col bg-muted/40">
+      <main
+        className="flex min-h-screen w-full flex-col bg-muted/40"
+        suppressHydrationWarning
+      >
         <SettingsProvider>
           <TooltipProvider delayDuration={0}>
             <div className="min-h-screen flex">

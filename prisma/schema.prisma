@@ -1,37 +1,61 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
+  output   = "../src/generated/prisma-client"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql" // Ou "mysql", "sqlite", etc.
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
+// ENUMS: Definem os status e papéis possíveis, evitando erros de digitação.
+enum Role {
+  USER
+  ADMIN
+}
+
+enum PaymentStatus {
+  PENDING // Pagamento aguardando confirmação
+  PAID // Pagamento confirmado
+  FAILED // Pagamento falhou
+}
+
+enum EnrollmentStatus {
+  IN_PROGRESS // Aluno está cursando
+  COMPLETED // Aluno finalizou o curso
+}
+
+// MODELS: A estrutura da sua aplicação
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String  @unique
-  password  String
-  role      Role     @default(USER)
-  image     String? @default("./images/default-profile.jpg")
-  settings  Settings?
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  password      String? // Lembre-se de sempre armazenar senhas com hash
+  image         String?   @default("/images/default-profile.jpg") // URL da imagem do usuário
+  role          Role      @default(USER)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  sessions  Session[]
-  accounts  Account[]
+
+  // Relações
+  accounts    Account[]
+  sessions    Session[]
+  sales       Sale[]
+  payments    Payment[]
+  enrollments CourseEnrollment[]
+  courses     Course[] // Cursos criados por este usuário (se for um instrutor/admin)
+  settings    Settings? // Configurações do usuário, opcional
 }
+
 model Settings {
   id     String @id @default(cuid())
-  user User @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
   userId String @unique
 
   avatar     String
@@ -64,34 +88,121 @@ enum Layout {
   expanded
 }
 
-model Account {
-  id                 String    @id @default(cuid())
-  userId             String
-  providerType       String
-  providerId         String
-  providerAccountId  String
-  refreshToken       String?
-  accessToken        String?
-  accessTokenExpires DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  user               User      @relation(fields: [userId], references: [id])
+model Course {
+  id          String  @id @default(cuid())
+  title       String
+  description String? @db.Text
+  price       Decimal @db.Decimal(10, 2) // Preço com 2 casas decimais
+  imageUrl    String?
+  isPublished Boolean @default(false)
 
-  @@unique([providerId, providerAccountId])
+  // Relaciona o curso a um criador (Admin/Instrutor)
+  creatorId String
+  creator   User   @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relações
+  enrollments CourseEnrollment[]
+  saleItems   SaleItem[]
+}
+
+// Uma venda pode conter vários cursos (itens de venda)
+model Sale {
+  id          String   @id @default(cuid())
+  totalAmount Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relações
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  items   SaleItem[]
+  payment Payment? // Uma venda tem um pagamento associado
+}
+
+// Representa um curso específico dentro de uma venda
+model SaleItem {
+  id                String  @id @default(cuid())
+  priceAtTimeOfSale Decimal @db.Decimal(10, 2) // Preço no momento da compra
+
+  // Relações
+  saleId   String
+  sale     Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id])
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  amount        Decimal       @db.Decimal(10, 2)
+  status        PaymentStatus @default(PENDING)
+  paymentMethod String? // Ex: "credit_card", "pix"
+  transactionId String?       @unique // ID do gateway de pagamento
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relações
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: NoAction)
+
+  // Relação 1-para-1 com a Venda
+  saleId String @unique
+  sale   Sale   @relation(fields: [saleId], references: [id], onDelete: Cascade)
+}
+
+model CourseEnrollment {
+  id          String           @id @default(cuid())
+  status      EnrollmentStatus @default(IN_PROGRESS)
+  enrolledAt  DateTime         @default(now())
+  completedAt DateTime? // Data de conclusão
+
+  // Relações
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  // Garante que um usuário só pode se inscrever uma vez no mesmo curso
+  @@unique([userId, courseId])
+}
+
+// MODELS PARA O NEXT-AUTH (Padrão)
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
 }
 
 model Session {
   id           String   @id @default(cuid())
+  sessionToken String   @unique
   userId       String
   expires      DateTime
-  sessionToken String   @unique
-  accessToken  String   @unique
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  user         User     @relation(fields: [userId], references: [id])
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-enum Role {
-  USER
-  ADMIN
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }

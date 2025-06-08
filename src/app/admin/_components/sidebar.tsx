@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -10,7 +9,9 @@ import {
   HelpCircle,
   Menu,
   ChevronLeft,
-  Building2Icon,
+  BookAIcon,
+  Book,
+  User2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,8 @@ import {
 
 const navigation = [
   { name: "Início", href: "/admin", icon: Home },
-  { name: "Cidades", href: "/admin/cities", icon: Building2Icon },
+  { name: "Cursos", href: "/admin/cursos", icon: Book },
+  { name: "Alunos", href: "/admin/students", icon: User2 },
 ];
 
 const bottomNavigation = [
@@ -90,8 +92,8 @@ export function Sidebar() {
             >
               {!isCollapsed && (
                 <Link href="/admin" className="flex items-center font-semibold">
-                  <Image src="/logo.png" alt="Logo" width={40} height={40} />
-                  <span className="text-lg ">Portal</span>
+                  <BookAIcon className="h-6 w-6 mr-2" />
+                  <span className="text-lg ">Portal de Cursos</span>
                 </Link>
               )}
               <Button

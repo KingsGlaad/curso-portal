@@ -25,7 +25,7 @@ export async function GET() {
 
 export async function POST() {
   const user = await prisma.user.findUnique({
-    where: { id: "cmbmux16j0002jpdgzdx3tbjk" },
+    where: { id: "cmbn5i0in0001jpa4gic1r2zz" },
   });
   if (!user) {
     return NextResponse.json({ message: "User not found", status: 404 });
